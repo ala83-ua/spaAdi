@@ -1,30 +1,32 @@
-<script setup>
-import Navbar from './components/Navbar.vue'
-</script>
-
 <template>
-  <div class="app">
+  <div id="app">
     <Navbar />
-
-    <!-- Contenido principal: lo pone el router -->
     <main class="container">
-      <RouterView />
+      <router-view></router-view>
     </main>
-
-    <footer class="site-footer">
-      © 2025 — Inst·alacant
-    </footer>
+    <footer class="site-footer">© 2025 — Inst·alacant</footer>
   </div>
 </template>
 
-<style scoped>
-.app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+<script>
+import Navbar from './components/Navbar.vue';
+
+export default {
+  name: 'App',
+  components: {
+    Navbar
+  }
+}
+</script>
+
+<style>
+body {
+  margin: 0;
+  padding: 0;
 }
 
-main.container {
-  flex: 1;
+#app {
+  min-height: 100vh;
+  background: #fafafa;
 }
 </style>

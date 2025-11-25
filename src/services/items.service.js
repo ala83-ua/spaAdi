@@ -1,19 +1,18 @@
-import { pb } from './pb';
+// import { pb } from './pb'; // TODO: Implementar conexión a base de datos
 const COL = 'publicaciones';
 
 export async function crearPublicacion({ contenido, archivos = [], ubicacion = '' }) {
-  const form = new FormData();
-  form.append('Comentario', contenido);
-  if (ubicacion) form.append('Ubicacion', ubicacion);
-  archivos.forEach(f => form.append('Imagen', f)); // soporte múltiples
-  form.append('id_usuario', pb.authStore.model?.id || '');
-  return pb.collection(COL).create(form);
+  // TODO: Implementar con pb cuando esté disponible
+  console.log('Creating publication:', { contenido, ubicacion, archivos });
+  return Promise.resolve({ id: 'mock-id', contenido, ubicacion });
 }
 
 export async function listarPublicaciones({ page=1, perPage=10, sort='-created' } = {}) {
-  return pb.collection(COL).getList(page, perPage, { sort });
+  // TODO: Implementar con pb cuando esté disponible
+  return Promise.resolve({ items: [], page, perPage, totalItems: 0 });
 }
 
 export async function eliminarPublicacion(id) {
-  return pb.collection(COL).delete(id);
+  // TODO: Implementar con pb cuando esté disponible
+  return Promise.resolve({ success: true });
 }

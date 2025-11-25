@@ -1,139 +1,114 @@
-<script setup>
-import { ref, onMounted } from 'vue'
-import { listarPublicaciones } from '../services/publicaciones.service.js'
-
-// Estado reactivo
-const publicaciones = ref([])
-const cargando = ref(true)
-const error = ref('')
-
-// La URL base que usabas en feed.html
-const BASE = 'http://127.0.0.1:8090'
-
-// Helpers que ya tenías en feed.html (adaptados aquí)
-const fileUrl = (item, filename) =>
-  `${BASE}/api/files/${item.collectionId}/${item.id}/${filename}`
-
-const userAvatarUrl = (u) =>
-  `${BASE}/api/files/_pb_users_auth_/${u.id}/${u.avatar}`
-
-// Tolerar distintos nombres de campos (igual que en tu HTML)
-const getTexto = (p) =>
-  p.Comentario ?? p.comentario ?? p.texto ?? p.content ?? ''
-
-const getArchivos = (p) =>
-  p.Imagen ?? p.imagen ?? p.archivos ?? p.files ?? []
-
-const getUsuario = (p) =>
-  p.expand?.id_usuario ?? p.usuario ?? p.user ?? null
-
-// Cargar publicaciones al montar el componente
-onMounted(async () => {
-  try {
-    cargando.value = true
-    error.value = ''
-
-    const res = await listarPublicaciones({ page: 1, perPage: 10 })
-    // res.items contiene la lista (así es como PocketBase devuelve getList)
-    publicaciones.value = res.items ?? []
-  } catch (e) {
-    console.error('ERROR FEED', e)
-    error.value = 'No se pudo cargar el feed.'
-  } finally {
-    cargando.value = false
-  }
-})
-</script>
-
 <template>
-  <section class="grid-3">
-    <div class="card" style="grid-column: span 2;">
-      <h1>Inicio</h1>
+  <div>
+    <section class="card">
+      <h1 class="mt-0">Inicio</h1>
+      <div class="toolbar mt-2">
+        <input v-model="composeInput" class="input" type="text" placeholder="¿Qué estás pensando?" />
+        <input ref="fileInput" @change="handleFileSelect" type="file" accept="image/*" multiple style="display:none">
+        <button @click="$refs.fileInput.click()" class="button--ghost">Añadir fotos</button>
+        <button @click="publishPost" class="button">Publicar</button>
+      </div>
+      <div class="mt-2" v-if="previewFiles.length > 0" style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <img v-for="(f, i) in previewFiles" :key="i" :src="f" style="max-width:120px;border-radius:8px" />
+      </div>
+      <p class="muted mt-1">Sesión: {{ currentUserEmail }}</p>
+      <p v-if="feedError" style="color:#c00">{{ feedError }}</p>
+    </section>
 
-      <p v-if="cargando" class="muted">
-        Cargando publicaciones...
-      </p>
-
-      <p v-if="error" style="color:#c00;">
-        {{ error }}
-      </p>
-
-      <ul v-if="!cargando && !error" class="feed-list">
-        <li
-          v-for="pub in publicaciones"
-          :key="pub.id"
-          class="feed-item"
-        >
-          <article>
-            <!-- cabecera con avatar + email/usuario -->
-            <header class="feed-item__header">
-              <img
-                v-if="getUsuario(pub)?.avatar"
-                :src="userAvatarUrl(getUsuario(pub))"
-                alt="avatar"
-                class="avatar"
-              >
-              <div>
-                <strong>{{ getUsuario(pub)?.username || getUsuario(pub)?.email }}</strong>
-                <div class="muted">
-                  {{ new Date(pub.created).toLocaleString() }}
-                </div>
-              </div>
-            </header>
-
-            <!-- texto de la publicación -->
-            <p class="mt-1">
-              {{ getTexto(pub) }}
-            </p>
-
-            <!-- imágenes -->
-            <div v-if="getArchivos(pub).length" class="mt-1">
-              <img
-                v-for="img in getArchivos(pub)"
-                :key="img"
-                :src="fileUrl(pub, img)"
-                alt="imagen publicación"
-                style="max-width: 100%; border-radius: 8px; margin-top: 8px;"
-              >
-            </div>
-          </article>
-        </li>
-      </ul>
-    </div>
-
-    <div class="card">
-      <h2>Info</h2>
-      <p class="muted">Aquí podrás añadir cosas extra del feed.</p>
-    </div>
-  </section>
+    <section class="post-list mt-4">
+      <article v-for="post in posts" :key="post.id" class="post-card">
+        <header class="post-card__header">
+          <img class="post-card__avatar" :src="getAvatarUrl(post)" alt="Avatar">
+          <div>
+            <div class="post-card__user">{{ getUsername(post) }}</div>
+            <div class="post-card__meta">{{ formatDate(post.created) }}</div>
+          </div>
+        </header>
+        <img v-for="img in getImages(post)" :key="img" class="post-card__image" :src="getImageUrl(post, img)" alt="">
+        <div class="post-card__body">
+          <p>{{ getTexto(post) }}</p>
+        </div>
+        <div class="post-card__actions">
+          <button v-if="isLogged && isOwnPost(post)" @click="deletePost(post.id)" class="button--ghost">🗑️ Eliminar</button>
+        </div>
+      </article>
+    </section>
+  </div>
 </template>
 
-<style scoped>
-.feed-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
+<script>
+import { isLogged, currentUser } from '../services/auth.service.js';
+import { crearPublicacion, listarPublicaciones, eliminarPublicacion } from '../services/publicaciones.service.js';
 
-.feed-item {
-  border-bottom: 1px solid #ddd;
-  padding: 12px 0;
-}
+const BASE = 'http://127.0.0.1:8090';
 
-.feed-item:last-child {
-  border-bottom: none;
+export default {
+  name: 'FeedView',
+  data() {
+    return {
+      composeInput: '',
+      selectedFiles: [],
+      previewFiles: [],
+      posts: [],
+      feedError: '',
+      isLogged: false,
+      currentUserEmail: 'Invitado',
+      currentUserId: null
+    }
+  },
+  mounted() {
+    this.isLogged = isLogged();
+    const user = currentUser();
+    this.currentUserEmail = this.isLogged ? (user?.email || '—') : 'Invitado';
+    this.currentUserId = user?.id;
+    this.loadPosts();
+  },
+  methods: {
+    handleFileSelect(e) {
+      this.selectedFiles = Array.from(e.target.files || []);
+      this.previewFiles = this.selectedFiles.map(f => URL.createObjectURL(f));
+    },
+    async publishPost() {
+      if (!this.isLogged) return alert('Inicia sesión');
+      const comentario = this.composeInput.trim();
+      if (!comentario && !this.selectedFiles.length) return;
+      try {
+        await crearPublicacion({ comentario, archivos: this.selectedFiles });
+        this.composeInput = '';
+        this.selectedFiles = [];
+        this.previewFiles = [];
+        this.loadPosts();
+      } catch (err) {
+        alert('No se pudo publicar');
+      }
+    },
+    async loadPosts() {
+      try {
+        const res = await listarPublicaciones({ page: 1, perPage: 10 });
+        this.posts = res.items || res;
+      } catch (err) {
+        this.feedError = 'Error al cargar el feed.';
+      }
+    },
+    async deletePost(id) {
+      if (!confirm('¿Eliminar?')) return;
+      try {
+        await eliminarPublicacion(id);
+        this.loadPosts();
+      } catch {
+        alert('No se pudo eliminar');
+      }
+    },
+    getTexto(p) { return p.Comentario || p.comentario || ''; },
+    getImages(p) { return (p.Imagen || p.imagen || []); },
+    getImageUrl(item, filename) { return `${BASE}/api/files/${item.collectionId}/${item.id}/${filename}`; },
+    getAvatarUrl(p) {
+      const u = p.expand?.id_usuario;
+      return (u?.avatar) ? `${BASE}/api/files/_pb_users_auth_/${u.id}/${u.avatar}` : 'img/avatar.png';
+    },
+    getUsername(p) { return p.expand?.id_usuario?.username || p.expand?.id_usuario?.email || 'Usuario'; },
+    formatDate(date) { return new Date(date).toLocaleString(); },
+    isOwnPost(p) { return this.currentUserId && p.expand?.id_usuario?.id === this.currentUserId; }
+  }
 }
-
-.feed-item__header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  object-fit: cover;
-}
-</style>
+</script>

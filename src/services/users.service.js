@@ -1,4 +1,4 @@
-import { pb } from './pb';
+// import { pb } from './pb'; // TODO: Implementar conexión a base de datos
 
 /**
  * Actualiza el usuario actualmente autenticado
@@ -8,28 +8,9 @@ import { pb } from './pb';
  * @returns {Promise} Promesa con el usuario actualizado
  */
 export async function actualizarUsuarioActual({ avatarFile, username } = {}) {
-  const userId = pb.authStore.model?.id;
-  if (!userId) {
-    throw new Error('No hay usuario autenticado');
-  }
-
-  const form = new FormData();
-  
-  if (avatarFile) {
-    form.append('avatar', avatarFile);
-  }
-  
-  if (username !== undefined) {
-    form.append('username', username);
-  }
-
-  // Actualiza el registro del usuario
-  const updated = await pb.collection('users').update(userId, form);
-  
-  // Actualiza el authStore con los nuevos datos
-  pb.authStore.save(pb.authStore.token, updated);
-  
-  return updated;
+  // TODO: Implementar con pb cuando esté disponible
+  console.log('Updating user:', { avatarFile, username });
+  return Promise.resolve({ id: 'mock-user-id', username });
 }
 
 /**
@@ -38,7 +19,8 @@ export async function actualizarUsuarioActual({ avatarFile, username } = {}) {
  * @returns {Promise} Promesa con los datos del usuario
  */
 export async function obtenerUsuario(userId) {
-  return pb.collection('users').getOne(userId);
+  // TODO: Implementar con pb cuando esté disponible
+  return Promise.resolve({ id: userId, username: 'mock-user' });
 }
 
 /**
@@ -47,5 +29,6 @@ export async function obtenerUsuario(userId) {
  * @returns {Promise} Promesa con la lista de usuarios
  */
 export async function listarUsuarios({ page = 1, perPage = 20, filter = '' } = {}) {
-  return pb.collection('users').getList(page, perPage, { filter });
+  // TODO: Implementar con pb cuando esté disponible
+  return Promise.resolve({ items: [], page, perPage, totalItems: 0 });
 }
