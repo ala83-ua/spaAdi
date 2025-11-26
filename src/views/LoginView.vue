@@ -1,7 +1,7 @@
 <template>
   <section class="grid-3">
     <!-- LOGIN -->
-    <form @submit.prevent="handleLogin" class="card" novalidate>
+    <form @submit.prevent="handleLogin" :class="['card', { shake: showShake }]" novalidate>
       <h1 class="mt-0">Entrar</h1>
       <label class="mt-2">Email
         <input v-model="loginForm.email" class="input" type="email" placeholder="tu@email" required>
@@ -43,6 +43,7 @@
 
 <script>
 import { login, register, currentUser, isLogged } from '../services/auth.service.js';
+import { emit } from '../eventBus.js';
 
 export default {
   name: 'LoginView',
@@ -61,11 +62,11 @@ export default {
       loginError: '',
       regError: '',
       regSuccess: false,
-      currentUserEmail: 'Invitado'
+      currentUserEmail: 'Invitado',
+      showShake: false
     }
   },
   mounted() {
-    // Si ya está logueado, redirigir al feed
     if (isLogged()) {
       this.$router.push('/feed');
     }
@@ -76,17 +77,37 @@ export default {
   methods: {
     async handleLogin() {
       this.loginError = '';
+      this.showShake = false;
+      
+      if (!this.loginForm.email.trim() || !this.loginForm.password.trim()) {
+        this.loginError = 'Email y contraseña son requeridos';
+        this.showShake = true;
+        setTimeout(() => { this.showShake = false; }, 500);
+        return;
+      }
+      
       try {
         await login(this.loginForm.email.trim(), this.loginForm.password);
+        emit('login', currentUser());
         this.$router.push('/feed');
       } catch (e) {
         console.error('LOGIN ERROR', e);
         this.loginError = e.message || 'No se pudo iniciar sesión.';
+        this.showShake = true;
+        setTimeout(() => { this.showShake = false; }, 500);
       }
     },
     async handleRegister() {
       this.regError = '';
       this.regSuccess = false;
+      
+      // Validar campos vacíos
+      if (!this.regForm.username.trim() || !this.regForm.email.trim() || 
+          !this.regForm.password.trim() || !this.regForm.passwordConfirm.trim()) {
+        this.regError = 'Todos los campos son requeridos';
+        return;
+      }
+      
       try {
         if (this.regForm.password !== this.regForm.passwordConfirm) {
           this.regError = 'Las contraseñas no coinciden.';
@@ -111,3 +132,15 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+  20%, 40%, 60%, 80% { transform: translateX(10px); }
+}
+
+.shake {
+  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+</style>

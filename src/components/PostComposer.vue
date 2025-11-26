@@ -19,6 +19,39 @@
 </template>
 
 <script>
+/**
+ * PostComposer.vue
+ * 
+ * DESCRIPCIÓN GENERAL:
+ * Componente que permite a usuarios autenticados crear nuevas publicaciones.
+ * 
+ * EVENTOS GENERADOS:
+ * - 'post-created': Se emite cuando una publicación se crea exitosamente
+ * 
+ * PROPS:
+ * - title: string (default: 'Crear publicación')
+ *   Descripción: Título que se muestra en el encabezado del componente
+ * 
+ * VARIABLES DE ESTADO (data):
+ * - composeInput: string - Texto de la publicación que está escribiendo el usuario
+ * - selectedFiles: File[] - Array de archivos de imagen seleccionados
+ * - previewFiles: string[] - Array de URLs de objeto (data URLs) para previsualizar las imágenes
+ * - error: string - Mensaje de error
+ * - success: string - Mensaje de éxito
+ * - isPublishing: boolean - Indica si la publicación está siendo procesada
+ * 
+ * MÉTODOS:
+ * - handleFileSelect(e: Event): void
+ *   Descripción: Procesa la selección de archivos de imagen
+ *   Parámetros: e - Evento del input file
+ * 
+ * - removePreview(index: number): void
+ *   Descripción: Elimina una imagen de la previsualización
+ *   Parámetros: index - Índice del archivo a eliminar
+ * 
+ * - publishPost(): Promise<void>
+ *   Descripción: Crea y publica una nueva publicación
+ */
 import { isLogged, currentUser } from '../services/auth.service.js';
 import { crearPublicacion } from '../services/publicaciones.service.js';
 

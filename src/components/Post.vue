@@ -16,6 +16,29 @@
 </template>
 
 <script>
+/**
+ * Post.vue
+ * 
+ * DESCRIPCIÓN GENERAL:
+ * Componente simple para mostrar una tarjeta de publicación básica con
+ * información del autor, fecha y contenido. Incluye botones de interacción
+ * (like, comentario, compartir).
+ * 
+ * PROPS:
+ * - post: Object (default: { author: 'User', date: fecha actual, content: 'Post content' })
+ *   Descripción: Objeto que contiene la información de la publicación a mostrar
+ *   Estructura esperada: { author: string, date: string, content: string }
+ * 
+ * MÉTODOS:
+ * - like(): void
+ *   Descripción: Manejador del botón de like (actualmente solo registra en consola)
+ * 
+ * - comment(): void
+ *   Descripción: Manejador del botón de comentario (actualmente solo registra en consola)
+ * 
+ * - share(): void
+ *   Descripción: Manejador del botón de compartir (actualmente solo registra en consola)
+ */
 export default {
   name: 'Post',
   props: {

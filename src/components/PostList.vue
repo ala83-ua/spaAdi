@@ -5,6 +5,17 @@
 </template>
 
 <script>
+/**
+ * PostList.vue
+ * 
+ * DESCRIPCIÓN GENERAL:
+ * Componente contenedor simple que renderiza una lista de publicaciones.
+ * Itera sobre un array de posts y renderiza un componente Post para cada uno.
+ * 
+ * PROPS:
+ * - posts: Array (default: [])
+ *   Descripción: Array de objetos de publicación a mostrar
+ */
 import Post from './Post.vue';
 
 export default {

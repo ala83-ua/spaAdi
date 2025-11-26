@@ -36,7 +36,8 @@
           <img v-if="getImages(post).length > 0" :src="getImageUrl(post, getImages(post)[0])" :alt="getTexto(post)" class="post-grid-item__image">
           <div v-else class="post-grid-item__no-image">Sin imagen</div>
           <div class="post-grid-item__overlay">
-            <button @click="deletePost(post.id)" class="button--ghost">🗑️</button>
+            <button @click.stop="editPost(post)" class="button--ghost" title="Editar">✏️</button>
+            <button @click.stop="deletePost(post.id)" class="button--ghost" title="Eliminar">🗑️</button>
           </div>
         </div>
         <div class="post-grid-item__info">
@@ -46,20 +47,35 @@
       </article>
     </div>
   </section>
+
+  <!-- Modal para editar post -->
+  <div v-if="selectedPost" class="modal-overlay" @click="closeEditModal">
+    <div class="modal-content" @click.stop>
+      <button class="btn-close" @click="closeEditModal">✕</button>
+      <PostDetail 
+        :post="selectedPost"
+        @close="closeEditModal"
+        @post-updated="onPostUpdated"
+        @post-deleted="onPostDeleted"
+      />
+    </div>
+  </div>
 </template>
 
 <script>
 import { currentUser, isLogged, logout } from '../services/auth.service.js';
 import { listarPublicaciones, eliminarPublicacion } from '../services/publicaciones.service.js';
-import { actualizarUsuarioActual } from '../services/users.service.js';
+import { actualizarUsuarioActual, obtenerAvatarUsuario } from '../services/users.service.js';
 import PostComposer from '../components/PostComposer.vue';
+import PostDetail from '../components/PostDetail.vue';
 
 const BASE = 'http://127.0.0.1:8090';
 
 export default {
   name: 'PerfilView',
   components: {
-    PostComposer
+    PostComposer,
+    PostDetail
   },
   data() {
     return {
@@ -72,7 +88,8 @@ export default {
       user: null,
       avatarPreviewUrl: null,
       selectedAvatarFile: null,
-      hasUnsavedAvatar: false
+      hasUnsavedAvatar: false,
+      selectedPost: null
     }
   },
   mounted() {
@@ -93,12 +110,10 @@ export default {
   },
   methods: {
     updateAvatarDisplay() {
-      // Si hay un preview de avatar, mostrarlo primero
       if (this.avatarPreviewUrl) {
         this.avatarUrl = this.avatarPreviewUrl;
       } else {
-        // Intentar obtener del localStorage primero (avatar guardado)
-        const userAvatar = localStorage.getItem('userAvatar');
+        const userAvatar = obtenerAvatarUsuario(this.userId);
         if (userAvatar) {
           this.avatarUrl = userAvatar;
         } else if (this.user?.avatar) {
@@ -178,6 +193,23 @@ export default {
         }
       }
     },
+    editPost(post) {
+      this.selectedPost = post;
+    },
+    closeEditModal() {
+      this.selectedPost = null;
+    },
+    onPostUpdated(updatedPost) {
+      const index = this.myPosts.findIndex(p => p.id === updatedPost.id);
+      if (index !== -1) {
+        this.myPosts[index] = updatedPost;
+        this.selectedPost = updatedPost;
+      }
+    },
+    onPostDeleted(postId) {
+      this.myPosts = this.myPosts.filter(p => p.id !== postId);
+      this.selectedPost = null;
+    },
     getTexto(p) {
       return p.Comentario ?? p.comentario ?? p.texto ?? p.content ?? '';
     },
@@ -201,3 +233,62 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-content {
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.btn-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 24px;
+  cursor: pointer;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: all 0.2s;
+}
+
+.btn-close:hover {
+  background: rgba(255, 255, 255, 1);
+  color: #333;
+}
+
+.post-grid-item__overlay {
+  display: flex;
+  gap: 8px;
+}
+
+.post-grid-item__overlay button {
+  flex: 1;
+}
+</style>

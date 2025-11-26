@@ -6,14 +6,45 @@
         <router-link to="/">Inicio</router-link>
         <router-link to="/explorar">Explorar</router-link>
         <router-link to="/perfil">Perfil</router-link>
-        <router-link to="/login" id="authLink">{{ isLogged ? 'Cerrar sesión' : 'Entrar' }}</router-link>
+        <a 
+          href="#"
+          id="authLink"
+          @click="handleAuthClick"
+        >
+          {{ isLogged ? 'Cerrar sesión' : 'Entrar' }}
+        </a>
       </nav>
     </div>
   </header>
 </template>
 
 <script>
-import { isLogged, logout } from '../services/auth.service.js';
+/**
+ * Navbar.vue
+ * 
+ * DESCRIPCIÓN GENERAL:
+ * Barra de navegación principal de la aplicación. Muestra el logo, enlaces de navegación
+ * y un botón dinámico para iniciar/cerrar sesión. 
+ * 
+ * EVENTOS PROCESADOS:
+ * - 'login': Se dispara cuando un usuario inicia sesión (desde LoginView)
+ * - 'logout': Al cerrar sesión
+ * 
+ * EVENTOS GENERADOS:
+ * - 'logout': Se emite cuando el usuario confirma cerrar sesión
+ * 
+ * VARIABLES DE ESTADO (data):
+ * - isLogged: boolean - Indica si hay un usuario autenticado
+ * 
+ * MÉTODOS:
+ * 
+ * - handleAuthClick(e: Event): void
+ *   Maneja el clic en el botón de autenticación (Entrar/Cerrar sesión)
+ *   Parámetros: e - Evento del clic
+ *   Efectos: Si está logeado, muestra confirmación y cierra sesión; si no está logeado, redirige a /login
+ */
+import { isLogged, logout, currentUser } from '../services/auth.service.js';
+import { on, off, emit } from '../eventBus.js';
 
 export default {
   name: 'Navbar',
@@ -23,16 +54,38 @@ export default {
     }
   },
   mounted() {
-    this.isLogged = isLogged();
+    this.checkLoginStatus();
+    on('login', this.handleLoginEvent);
+    on('logout', this.handleLogoutEvent);
+    window.addEventListener('storage', this.checkLoginStatus);
+  },
+  beforeUnmount() {
+    off('login', this.handleLoginEvent);
+    off('logout', this.handleLogoutEvent);
+    window.removeEventListener('storage', this.checkLoginStatus);
   },
   methods: {
-    handleLogout(e) {
+    checkLoginStatus() {
+      this.isLogged = isLogged();
+    },
+    handleLoginEvent() {
+      this.isLogged = true;
+    },
+    handleLogoutEvent() {
+      this.isLogged = false;
+    },
+    handleAuthClick(e) {
+      e.preventDefault();
+      
       if (this.isLogged) {
-        e.preventDefault();
         if (confirm('¿Seguro que quieres cerrar sesión?')) {
           logout();
+          emit('logout');
+          this.isLogged = false;
           this.$router.push('/login');
         }
+      } else {
+        this.$router.push('/login');
       }
     }
   }

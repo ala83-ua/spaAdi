@@ -34,6 +34,30 @@
 </template>
 
 <script>
+/**
+ * LoginForm.vue
+ * 
+ * DESCRIPCIÓN GENERAL:
+ * Componente de formulario de login que permite a los usuarios iniciar sesión.
+ * Valida los campos de email y contraseña y emite un evento 'login' con los datos.
+ * 
+ * EVENTOS GENERADOS:
+ * - 'login': Se emite cuando el usuario envía el formulario válido
+ *   Campos: { email: string, password: string }
+ * 
+ * VARIABLES DE ESTADO (data):
+ * - form: { email: '', password: '' } - Objeto que almacena los valores del formulario
+ *   * email: string - Email ingresado por el usuario
+ *   * password: string - Contraseña ingresada por el usuario
+ * - error: vacio | string - Mensaje de error de validación (sale nulo si no hay error)
+ * 
+ * MÉTODOS:
+ * - handleSubmit(): void
+ *   Descripción: Valida y envía el formulario
+ *   Parámetros: ninguno
+ *   Efectos: Limpia errores previos, valida campos, emite evento 'login' si es válido,
+ *            limpia el formulario después del envío
+ */
 export default {
   name: 'LoginForm',
   data() {
@@ -49,19 +73,16 @@ export default {
     handleSubmit() {
       this.error = null;
       
-      // Validación básica
       if (!this.form.email || !this.form.password) {
         this.error = 'Por favor completa todos los campos';
         return;
       }
 
-      // Emitir evento de login
       this.$emit('login', {
         email: this.form.email,
         password: this.form.password
       });
 
-      // Limpiar formulario
       this.form = { email: '', password: '' };
     }
   }
@@ -107,6 +128,12 @@ input {
   border-radius: 4px;
   font-size: 14px;
   transition: border-color 0.3s;
+  color: #111;
+  background-color: #fff;
+}
+
+input::placeholder {
+  color: #999;
 }
 
 input:focus {

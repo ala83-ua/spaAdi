@@ -25,6 +25,20 @@
 </template>
 
 <script>
+/**
+ * Perfil.vue
+ * 
+ * DESCRIPCIÓN GENERAL:
+ * Componente que muestra una tarjeta de perfil de usuario simplificada con
+ * información básica como nombre de usuario, biografía y estadísticas.
+ * 
+ * VARIABLES DE ESTADO (data):
+ * - username: string - Nombre del usuario (inicial: 'Mi Usuario')
+ * - bio: string - Biografía del usuario (inicial: 'Bienvenido a mi perfil')
+ * - posts: number - Número de publicaciones del usuario
+ * - followers: number - Número de seguidores
+ * - following: number - Número de usuarios que sigue
+ */
 export default {
   name: 'Perfil',
   data() {
