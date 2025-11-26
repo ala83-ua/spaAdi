@@ -1,34 +1,50 @@
 <template>
-  <section class="card">
-    <h1 class="mt-0">Mi perfil</h1>
-    <img v-if="avatarUrl" :src="avatarUrl" alt="Avatar" style="width:96px;height:96px;border-radius:999px;object-fit:cover">
-    <div class="mt-2">
-      <input ref="avatarInput" @change="handleAvatarChange" type="file" accept="image/*" style="display:none">
-      <button @click="$refs.avatarInput.click()" class="button--ghost" type="button">Cambiar avatar</button>
+  <!-- Sección de perfil del usuario -->
+  <section class="card profile-header">
+    <div class="profile-header__content">
+      <div class="profile-header__avatar-wrapper">
+        <img :src="avatarUrl" alt="Avatar" class="profile-header__avatar">
+        <input ref="avatarInput" @change="handleAvatarChange" type="file" accept="image/*" style="display:none">
+        <button @click="$refs.avatarInput.click()" class="button button--avatar-change">Cambiar</button>
+        <button v-if="hasUnsavedAvatar" @click="saveAvatar" class="button">Guardar cambios</button>
+      </div>
+      <div class="profile-header__info">
+        <h1 class="profile-header__name">{{ userName }}</h1>
+        <p class="profile-header__email">{{ userEmail }}</p>
+        <p class="profile-header__meta">{{ myPosts.length }} publicaciones</p>
+        <p v-if="perfilError" class="profile-header__error">{{ perfilError }}</p>
+      </div>
     </div>
-    <p class="muted mt-1">Email: <span>{{ userEmail }}</span></p>
-    <p class="muted">ID: <span>{{ userId }}</span></p>
-    <p v-if="perfilError" style="color:#c00">{{ perfilError }}</p>
   </section>
 
-  <!-- Mis publicaciones -->
-  <section class="post-list mt-4">
-    <article v-for="post in myPosts" :key="post.id" class="post-card">
-      <header class="post-card__header">
-        <img class="post-card__avatar" :src="avatarUrl" alt="Avatar">
-        <div>
-          <div class="post-card__user">{{ userEmail }}</div>
-          <div class="post-card__meta">{{ formatDate(post.created) }}</div>
+  <!-- Compositor de posts en perfil -->
+  <PostComposer 
+    title="Subir publicación"
+    placeholder="¿Qué estás pensando?"
+    @post-created="loadMyPosts"
+  />
+
+  <!-- Sección de fotos del usuario (grid) -->
+  <section class="mt-4">
+    <h2 class="mt-0">Mis publicaciones</h2>
+    <div v-if="myPosts.length === 0" class="muted" style="text-align:center;padding:32px">
+      No has publicado nada aún.
+    </div>
+    <div v-else class="grid-3">
+      <article v-for="post in myPosts" :key="post.id" class="post-grid-item">
+        <div class="post-grid-item__image-container">
+          <img v-if="getImages(post).length > 0" :src="getImageUrl(post, getImages(post)[0])" :alt="getTexto(post)" class="post-grid-item__image">
+          <div v-else class="post-grid-item__no-image">Sin imagen</div>
+          <div class="post-grid-item__overlay">
+            <button @click="deletePost(post.id)" class="button--ghost">🗑️</button>
+          </div>
         </div>
-      </header>
-      <img v-for="filename in getImages(post)" :key="filename" class="post-card__image" :src="getImageUrl(post, filename)" alt="">
-      <div class="post-card__body">
-        <p>{{ getTexto(post) }}</p>
-      </div>
-      <div class="post-card__actions">
-        <button @click="deletePost(post.id)" class="button--ghost">🗑️ Eliminar</button>
-      </div>
-    </article>
+        <div class="post-grid-item__info">
+          <p class="post-grid-item__text">{{ getTexto(post) }}</p>
+          <p class="post-grid-item__date">{{ formatDate(post.created) }}</p>
+        </div>
+      </article>
+    </div>
   </section>
 </template>
 
@@ -36,19 +52,27 @@
 import { currentUser, isLogged, logout } from '../services/auth.service.js';
 import { listarPublicaciones, eliminarPublicacion } from '../services/publicaciones.service.js';
 import { actualizarUsuarioActual } from '../services/users.service.js';
+import PostComposer from '../components/PostComposer.vue';
 
 const BASE = 'http://127.0.0.1:8090';
 
 export default {
   name: 'PerfilView',
+  components: {
+    PostComposer
+  },
   data() {
     return {
       userEmail: 'Invitado',
+      userName: 'Usuario',
       userId: '-',
       avatarUrl: 'img/avatar.png',
       myPosts: [],
       perfilError: '',
-      user: null
+      user: null,
+      avatarPreviewUrl: null,
+      selectedAvatarFile: null,
+      hasUnsavedAvatar: false
     }
   },
   mounted() {
@@ -61,6 +85,7 @@ export default {
     const user = currentUser();
     this.user = user;
     this.userEmail = user?.email ?? 'Invitado';
+    this.userName = user?.username ?? user?.email?.split('@')[0] ?? 'Usuario';
     this.userId = user?.id ?? '-';
     
     this.updateAvatarDisplay();
@@ -68,32 +93,67 @@ export default {
   },
   methods: {
     updateAvatarDisplay() {
-      if (this.user?.avatar) {
-        this.avatarUrl = `${BASE}/api/files/_pb_users_auth_/${this.user.id}/${this.user.avatar}?v=${Date.now()}`;
+      // Si hay un preview de avatar, mostrarlo primero
+      if (this.avatarPreviewUrl) {
+        this.avatarUrl = this.avatarPreviewUrl;
       } else {
-        this.avatarUrl = 'img/avatar.png';
+        // Intentar obtener del localStorage primero (avatar guardado)
+        const userAvatar = localStorage.getItem('userAvatar');
+        if (userAvatar) {
+          this.avatarUrl = userAvatar;
+        } else if (this.user?.avatar) {
+          this.avatarUrl = `http://127.0.0.1:8090/api/files/_pb_users_auth_/${this.user.id}/${this.user.avatar}?v=${Date.now()}`;
+        } else {
+          this.avatarUrl = 'img/avatar.png';
+        }
       }
     },
     async handleAvatarChange() {
       const file = this.$refs.avatarInput?.files?.[0];
       if (!file) return;
       
-      const btn = this.$refs.avatarInput.previousElementSibling;
       this.perfilError = '';
+      this.selectedAvatarFile = file;
+      
+      // Mostrar preview inmediatamente
+      this.avatarPreviewUrl = URL.createObjectURL(file);
+      this.updateAvatarDisplay();
+      this.hasUnsavedAvatar = true;
+    },
+    async saveAvatar() {
+      if (!this.selectedAvatarFile) return;
       
       try {
-        await actualizarUsuarioActual({ avatarFile: file });
+        this.perfilError = 'Guardando...';
+        
+        // Guardar el avatar usando el servicio
+        await actualizarUsuarioActual({ avatarFile: this.selectedAvatarFile });
+        
+        // Actualizar el usuario en memoria
+        if (this.user) {
+          this.user.avatar = this.selectedAvatarFile.name;
+        }
+        
+        // Limpiar el preview temporal
+        this.selectedAvatarFile = null;
+        this.avatarPreviewUrl = null;
+        this.hasUnsavedAvatar = false;
         this.updateAvatarDisplay();
+        
         this.$refs.avatarInput.value = '';
         
-        this.perfilError = '';
         // Mensaje de éxito temporal
+        this.perfilError = '✓ Avatar guardado correctamente';
         setTimeout(() => {
-          this.perfilError = '✓ Avatar actualizado correctamente';
-        }, 100);
+          if (this.perfilError === '✓ Avatar guardado correctamente') {
+            this.perfilError = '';
+          }
+        }, 3000);
       } catch (e) {
-        console.error('AVATAR ERROR', e);
-        this.perfilError = e.message || 'No se pudo actualizar el avatar.';
+        console.error('AVATAR SAVE ERROR', e);
+        this.avatarPreviewUrl = null;
+        this.updateAvatarDisplay();
+        this.perfilError = e.message || 'No se pudo guardar el avatar.';
       }
     },
     async loadMyPosts() {
@@ -127,7 +187,13 @@ export default {
       return [];
     },
     getImageUrl(item, filename) {
-      return `${BASE}/api/files/${item.collectionId}/${item.id}/${filename}`;
+      // Si la publicación tiene datos de imagen en base64, usarlos
+      if (item.imagenData) {
+        const img = item.imagenData.find(i => i.nombre === filename);
+        if (img) return img.data;
+      }
+      // Si no, usar la URL del servidor
+      return `http://127.0.0.1:8090/api/files/${item.collectionId}/${item.id}/${filename}`;
     },
     formatDate(date) {
       return new Date(date).toLocaleString();

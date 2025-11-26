@@ -1,5 +1,13 @@
 <template>
-  <section class="toolbar">
+  <!-- Compositor de posts en explorar -->
+  <PostComposer 
+    title="Compartir con la comunidad"
+    placeholder="Comparte tu foto, idea o proyecto..."
+    @post-created="refreshPosts"
+  />
+
+  <!-- Barra de búsqueda y filtros -->
+  <section class="toolbar mt-4">
     <input v-model="searchBox" @input="updateSearch" class="input" type="search" placeholder="Busca @usuario, texto o #hashtag" aria-label="Buscar" />
     <select v-model="categoryFilter" @change="updateSearch" class="select" aria-label="Filtrar por categoría">
       <option value="">Todo</option>
@@ -14,7 +22,7 @@
     <button @click="clearFilters" class="button--ghost" type="button">Limpiar</button>
   </section>
 
-  <section class="grid-3" id="grid">
+  <section class="grid-3 mt-4" id="grid">
     <article v-for="post in posts" :key="post.id" class="post-card">
       <header class="post-card__header">
         <img class="post-card__avatar" :src="getAvatarUrl(post)" alt="Avatar">
@@ -39,12 +47,16 @@
 
 <script>
 import { listarPublicaciones } from '../services/publicaciones.service.js';
-import { isLogged, logout } from '../services/auth.service.js';
+import { isLogged, logout, currentUser } from '../services/auth.service.js';
+import PostComposer from '../components/PostComposer.vue';
 
 const BASE = 'http://127.0.0.1:8090';
 
 export default {
   name: 'ExplorarView',
+  components: {
+    PostComposer
+  },
   data() {
     return {
       searchBox: '',
@@ -76,6 +88,12 @@ export default {
     this.loadPosts();
   },
   methods: {
+    refreshPosts() {
+      this.page = 1;
+      this.posts = [];
+      this.eof = false;
+      this.loadPosts();
+    },
     extractHashtags(text) {
       if (!text) return [];
       const tags = text.match(/#\w+/g);
@@ -152,10 +170,26 @@ export default {
       return [];
     },
     getImageUrl(item, filename) {
+      // Si la publicación tiene datos de imagen en base64, usarlos
+      if (item.imagenData) {
+        const img = item.imagenData.find(i => i.nombre === filename);
+        if (img) return img.data;
+      }
+      // Si no, usar la URL del servidor
       return `${BASE}/api/files/${item.collectionId}/${item.id}/${filename}`;
     },
     getAvatarUrl(p) {
       const autor = p.expand?.id_usuario;
+      
+      // Primero, buscar avatar en localStorage
+      if (autor?.id) {
+        const userAvatar = localStorage.getItem('userAvatar');
+        if (userAvatar && isLogged && currentUser()?.id === autor.id) {
+          return userAvatar;
+        }
+      }
+      
+      // Si no, usar la URL del servidor
       if (autor?.avatar) {
         return `${BASE}/api/files/_pb_users_auth_/${autor.id}/${autor.avatar}`;
       }
